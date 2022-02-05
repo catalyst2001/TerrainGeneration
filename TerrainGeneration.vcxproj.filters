@@ -30,6 +30,9 @@
     <ClCompile Include="world_generator.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="SimplexNoise.cpp">
+      <Filter>noise</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glmath.h">
@@ -46,6 +49,12 @@
     </ClInclude>
     <ClInclude Include="world_generator.h">
       <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="SimplexNoise.h">
+      <Filter>noise</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
