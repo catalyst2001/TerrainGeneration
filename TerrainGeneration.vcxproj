@@ -152,6 +152,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="glmath.cpp" />
+    <ClCompile Include="gl_ext_loader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="noise\noise1234.cpp" />
     <ClCompile Include="SimplexNoise.cpp" />
@@ -162,6 +163,7 @@
     <ClInclude Include="glmath.h" />
     <ClInclude Include="glutils.h" />
     <ClInclude Include="glwnd.h" />
+    <ClInclude Include="gl_ext_loader.h" />
     <ClInclude Include="noise\noise1234.h" />
     <ClInclude Include="SimplexNoise.h" />
     <ClInclude Include="world_generator.h" />

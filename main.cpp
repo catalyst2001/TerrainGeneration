@@ -1,5 +1,7 @@
 ﻿// Used noise: https://github.com/stegu/perlin-noise
 #include "glwnd.h"
+#include "gl_ext_loader.h"
+
 #include <vector>
 #include "world_generator.h"
 #include "camera.h"
@@ -10,11 +12,14 @@ INT Width, Height;
 
 std::vector<vec3> vertices;
 std::vector<unsigned int> indices;
+unsigned int number_of_indices;
 bool buttons[2048];
 
 bool is_filled = false;
 
 CCamera camera(45.f, vec3(0.f, 10.f, 0.f));
+
+unsigned int vao, vbo, ebo;
 
 void fn_draw()
 {
@@ -22,7 +27,7 @@ void fn_draw()
 	glLoadIdentity();
 	camera.UpdateCameraState(GetStruct()->h_window);
 	camera.Look();
-	camera.Move(buttons, 0.001f);
+	camera.Move(buttons, 0.1f);
 
 	glBegin(GL_LINES);
 	glVertex3f(0, 0, 0);
@@ -33,9 +38,17 @@ void fn_draw()
 	glVertex3f(0, 0, 1);
 	glEnd();
 
-	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glVertexPointer(3, GL_FLOAT, 0, NULL);
 	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+	glDrawElements(GL_TRIANGLES, number_of_indices, GL_UNSIGNED_INT, NULL);
+	printf("%d\n", number_of_indices);
+
+	int error = glGetError();
+	if (error != GL_NO_ERROR) {
+		printf("GL ERROR: %s\n", gluErrorString(error));
+	}
 }
 
 void fn_window_resize(HWND hWnd, int width, int height)
@@ -185,23 +198,34 @@ void generate_triangles_plane_noise(SimplexNoise &sn, std::vector<vec3> &dest_ve
 	}
 }
 
-SimplexNoise noise;
+SimplexNoise perlin;
 
-const float frequency = 40.f;
-const float frequency_m = 110.f;
-
+const float frequency = 20.f;
+const float frequency_m = 1000.f;
 
 void vertex_generation_filter(vec3 &vertex)
 {
-	float terrain_height = noise.noise((float)vertex.x / frequency, (float)vertex.z / frequency);
-	float m_height = noise.noise((float)vertex.x / frequency_m, (float)vertex.z / frequency_m);
-
-	vertex.y = terrain_height + m_height;
+	float nx = vertex.x / 1000.f, nz = vertex.z / 1000.f;
+	vertex.y = (1.00f *  perlin.noise(1.f *	nx, 1.f *  nz)
+		+ 0.50f * perlin.noise(2.f *  nx, 2.f *  nz)
+		+ 0.25f * perlin.noise(4.f *  nx, 4.f *  nz)
+		+ 0.13f * perlin.noise(8.f *  nx, 8.f *  nz)
+		+ 0.06f * perlin.noise(16.f * nx, 16.f * nz)
+		+ 0.03f * perlin.noise(32.f * nx, 32.f * nz));
+	vertex.y /= (1.00f + 0.50f + 0.25f + 0.13f + 0.06f + 0.03f);
+	vertex.y = pow(vertex.y, 2.00f);
+	vertex.y *= 300;
+	vertex.y += 63;
 }
 
 //Add this GL functions
 void fn_windowcreate(HWND hWnd)
 {
+	if (!LoadGLExtensions()) {
+		printf("Failed to load opengl extensions!\n");
+		exit(1);
+	}
+
 	RECT rct;
 	GetClientRect(hWnd, &rct);
 	glViewport(0, 0, (GLsizei)rct.right, (GLsizei)rct.bottom);
@@ -217,9 +241,35 @@ void fn_windowcreate(HWND hWnd)
 
 	//generate_triangles_plane_no_eb(vertices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f);
 	//generate_triangles_plane(vertices, indices, 0.f, 0.f, 0.f, 100.f, 100.f, 1.f);
+	generate_triangles_plane_noise(perlin, vertices, indices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.0f, vertex_generation_filter);
 
+	float ambient[] = { 0.0f, 0.0f, 0.0f, 1.f };
+	float diffuse[] = { 0.5f, 0.5f, 0.5f, 1.f };
+	float position[] = { 0.f, 100.f, 0.f, 0.f };
+	float direction[] = { 0.f, -1.f, 0.f };
 
-	generate_triangles_plane_noise(noise, vertices, indices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f, vertex_generation_filter);
+	glShadeModel(GL_FLAT);
+	glEnable(GL_LIGHT0);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
+	glLightfv(GL_LIGHT0, GL_POSITION, position);
+	glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, direction);
+
+	//create vertex buffer object
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	//create element buffer object
+	number_of_indices = indices.size();
+	glGenBuffers(1, &ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * number_of_indices, indices.data(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	vertices.clear();
+	indices.clear();
 
 	//SimplexNoise perlin;
 	//float y = 0.f;
@@ -264,6 +314,7 @@ void fn_windowcreate(HWND hWnd)
 
 void fn_windowclose(HWND hWnd)
 {
+	glDeleteBuffers(1, &vbo);
 	glDisableClientState(GL_VERTEX_ARRAY);
 	exit(0);
 }
