@@ -12,6 +12,8 @@ std::vector<vec3> vertices;
 std::vector<unsigned int> indices;
 bool buttons[2048];
 
+bool is_filled = false;
+
 CCamera camera(45.f, vec3(0.f, 10.f, 0.f));
 
 void fn_draw()
@@ -77,6 +79,11 @@ void fn_keydown(HWND hWnd, INT state, WPARAM wparam, LPARAM lparam)
 		case VK_F1:
 			camera.SetActive(!camera.IsActive());
 			break;
+
+		case VK_F2:
+			is_filled = !is_filled;
+			glPolygonMode(GL_FRONT_AND_BACK, is_filled ? GL_FILL : GL_LINE);
+			break;
 		}
 	}
 }
@@ -137,6 +144,61 @@ void generate_triangles_plane(std::vector<vec3> &dest_verts, std::vector<unsigne
 	}
 }
 
+void generate_triangles_plane_noise(SimplexNoise &sn, std::vector<vec3> &dest_verts, std::vector<unsigned int> &dest_indices,
+	float xpos, float ypos, float zpos,
+	float width_x, float width_y, float step, void (*vertex_filter_fn)(vec3 &vertex))
+{
+	vec3 p1, p2, p3;
+	int indice1, indice2;
+	float half_width_x = width_x / 2.f;
+	float half_width_y = width_y / 2.f;
+	for (int x = xpos - half_width_x; x < xpos + half_width_x; x += step) {
+		for (int z = zpos - half_width_y; z < zpos + half_width_y; z += step) {
+
+			//создаем первый треугольник
+			p1 = vec3((float)x, ypos, (float)z);
+			vertex_filter_fn(p1);
+			dest_verts.push_back(p1);
+			dest_indices.push_back(dest_verts.size() - 1);
+
+			p2 = vec3((float)x + step, ypos, (float)z);
+			vertex_filter_fn(p2);
+			dest_verts.push_back(p2);
+			indice1 = dest_verts.size() - 1;
+			dest_indices.push_back(indice1);
+
+			p3 = vec3((float)x, ypos, (float)z + step);
+			vertex_filter_fn(p3);
+			dest_verts.push_back(p3);
+			indice2 = dest_verts.size() - 1;
+			dest_indices.push_back(indice2);
+
+			//создаем второй треугольник
+			dest_indices.push_back(indice1);
+			dest_indices.push_back(indice2);
+
+			p2 = vec3((float)x + step, ypos, (float)z + step);
+			vertex_filter_fn(p2);
+			dest_verts.push_back(p2);
+			dest_indices.push_back(dest_verts.size() - 1);
+		}
+	}
+}
+
+SimplexNoise noise;
+
+const float frequency = 40.f;
+const float frequency_m = 110.f;
+
+
+void vertex_generation_filter(vec3 &vertex)
+{
+	float terrain_height = noise.noise((float)vertex.x / frequency, (float)vertex.z / frequency);
+	float m_height = noise.noise((float)vertex.x / frequency_m, (float)vertex.z / frequency_m);
+
+	vertex.y = terrain_height + m_height;
+}
+
 //Add this GL functions
 void fn_windowcreate(HWND hWnd)
 {
@@ -154,7 +216,10 @@ void fn_windowcreate(HWND hWnd)
 	camera.SetActive(true);
 
 	//generate_triangles_plane_no_eb(vertices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f);
-	generate_triangles_plane(vertices, indices, 0.f, 0.f, 0.f, 100.f, 100.f, 1.f);
+	//generate_triangles_plane(vertices, indices, 0.f, 0.f, 0.f, 100.f, 100.f, 1.f);
+
+
+	generate_triangles_plane_noise(noise, vertices, indices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f, vertex_generation_filter);
 
 	//SimplexNoise perlin;
 	//float y = 0.f;
@@ -217,7 +282,7 @@ int main()
 		fn_windowcreate,	  //Window create function
 		fn_windowclose,		  //Window close function
 		0, 0,
-		800,				  //Window width
-		600);				  //Window height
+		1920,				  //Window width
+		1080);				  //Window height
 	return 0;
 }
