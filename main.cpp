@@ -43,12 +43,12 @@ void fn_draw()
 	glVertexPointer(3, GL_FLOAT, 0, NULL);
 	//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 	glDrawElements(GL_TRIANGLES, number_of_indices, GL_UNSIGNED_INT, NULL);
-	printf("%d\n", number_of_indices);
+	//printf("%d\n", number_of_indices);
 
-	int error = glGetError();
-	if (error != GL_NO_ERROR) {
-		printf("GL ERROR: %s\n", gluErrorString(error));
-	}
+	//int error = glGetError();
+	//if (error != GL_NO_ERROR) {
+	//	printf("GL ERROR: %s\n", gluErrorString(error));
+	//}
 }
 
 void fn_window_resize(HWND hWnd, int width, int height)
