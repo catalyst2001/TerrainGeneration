@@ -157,6 +157,8 @@ void generate_triangles_plane(std::vector<vec3> &dest_verts, std::vector<unsigne
 	}
 }
 
+//наполовину оптимизированный вариант
+//сокращаются вершины в соприкасающихся гипотенузах двух треугольников
 void generate_triangles_plane_noise(SimplexNoise &sn, std::vector<vec3> &dest_verts, std::vector<unsigned int> &dest_indices,
 	float xpos, float ypos, float zpos,
 	float width_x, float width_y, float step, void (*vertex_filter_fn)(vec3 &vertex))
@@ -194,6 +196,62 @@ void generate_triangles_plane_noise(SimplexNoise &sn, std::vector<vec3> &dest_ve
 			vertex_filter_fn(p2);
 			dest_verts.push_back(p2);
 			dest_indices.push_back(dest_verts.size() - 1);
+		}
+	}
+}
+
+//полностью оптимизированная функция генерации сетки с шумом
+void generate_triangles_plane_noise2(std::vector<vec3> &dest_verts, std::vector<unsigned int> &dest_indices,
+	int xpos, int ypos, int zpos,
+	int width_x, int width_z, int step, void(*vertex_filter_fn)(vec3 &vertex))
+{
+	vec3 p1, p2, p3;
+	int indice0, indice1, indice2;
+	int half_width_x = width_x / 2;
+	int half_width_z = width_z / 2;
+
+	int min[2], max[2];
+	min[0] = xpos - half_width_x;
+	min[1] = zpos - half_width_z;
+	max[0] = xpos + half_width_x;
+	max[1] = zpos + half_width_z;
+
+	int edge_ind[2];
+	for (int x = min[0]; x < max[0]; x += step) {
+		for (int z = min[1]; z < max[1]; z += step) {
+			//создаем первый треугольник
+			p1 = vec3(x, ypos, z);
+			vertex_filter_fn(p1);
+			dest_verts.push_back(p1);
+			indice0 = dest_verts.size() - 1;
+			dest_indices.push_back(indice0);
+
+			p2 = vec3(x + step, ypos, z);
+			vertex_filter_fn(p2);
+			dest_verts.push_back(p2);
+			indice1 = dest_verts.size() - 1;
+			dest_indices.push_back(indice1);
+
+			p3 = vec3(x, ypos, z + step);
+			vertex_filter_fn(p3);
+			dest_verts.push_back(p3);
+			indice2 = dest_verts.size() - 1;
+			dest_indices.push_back(indice2);
+
+			//создаем второй треугольник
+			dest_indices.push_back(indice1);
+			dest_indices.push_back(indice2);
+			edge_ind[0] = indice2;
+
+			p2 = vec3(x + step, ypos, z + step);
+			vertex_filter_fn(p2);
+			dest_verts.push_back(p2);
+			edge_ind[1] = dest_verts.size() - 1;
+			dest_indices.push_back(edge_ind[1]);
+
+			for (; z < max[1]; z += step) {
+
+			}
 		}
 	}
 }
@@ -242,6 +300,48 @@ void fn_windowcreate(HWND hWnd)
 	//generate_triangles_plane_no_eb(vertices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f);
 	//generate_triangles_plane(vertices, indices, 0.f, 0.f, 0.f, 100.f, 100.f, 1.f);
 	generate_triangles_plane_noise(perlin, vertices, indices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.0f, vertex_generation_filter);
+	//generate_triangles_plane_noise2(vertices, indices, 0, 0, 0, 1000, 1000, 1, vertex_generation_filter);
+
+#pragma region OLDCODE
+	//float y = 0.f;
+	//for (int x = 0; x < 200; x++) {
+	//	for (int z = 0; z < 200; z++) {
+	//		vec3 p1, p2, p3;
+
+	//		//y = perlin.noise((float)x / 10.f, (float)z / 10.f);
+
+	//		//создаем первый треугольник
+	//		p1 = vec3((float)x, y, (float)z);
+	//		//p1.y = perlin.noise((float)p1.x / 10.f, (float)p1.z / 10.f);
+
+	//		p2 = vec3((float)x + 1, y, (float)z);
+	//		//p2.y = perlin.noise((float)p2.x / 10.f, (float)p2.z / 10.f);
+
+	//		p3 = vec3((float)x, y, (float)z + 1);
+	//		//p3.y = perlin.noise((float)p3.x / 10.f, (float)p3.z / 10.f);
+
+	//		vertices.push_back(p1);
+	//		vertices.push_back(p2);
+	//		vertices.push_back(p3);
+	//		//printf("Tri1( %f %f ) ( %f %f ) ( %f %f ) ", p1.x, p1.z, p2.x, p2.z, p3.x, p3.z);
+
+	//		//создаем второй треугольник
+	//		p1 = vec3((float)x, y, (float)z + 1);
+	//		//p1.y = perlin.noise((float)p1.x / 10.f, (float)p1.z / 10.f);
+
+	//		p2 = vec3((float)x + 1, y, (float)z + 1);
+	//		//p2.y = perlin.noise((float)p2.x / 10.f, (float)p2.z / 10.f);
+
+	//		p3 = vec3((float)x + 1, y, (float)z);
+	//		//p3.y = perlin.noise((float)p3.x / 10.f, (float)p3.z / 10.f);
+
+	//		vertices.push_back(p1);
+	//		vertices.push_back(p2);
+	//		vertices.push_back(p3);
+	//		//printf("Tri2( %f %f ) ( %f %f ) ( %f %f )\n", p1.x, p1.z, p2.x, p2.z, p3.x, p3.z);
+	//	}
+	//}
+#pragma endregion
 
 	float ambient[] = { 0.0f, 0.0f, 0.0f, 1.f };
 	float diffuse[] = { 0.5f, 0.5f, 0.5f, 1.f };
@@ -270,46 +370,6 @@ void fn_windowcreate(HWND hWnd)
 
 	vertices.clear();
 	indices.clear();
-
-	//SimplexNoise perlin;
-	//float y = 0.f;
-	//for (int x = 0; x < 200; x++) {
-	//	for (int z = 0; z < 200; z++) {
-	//		vec3 p1, p2, p3;
-
-	//		y = perlin.noise((float)x / 10.f, (float)z / 10.f);
-
-	//		//создаем первый треугольник
-	//		p1 = vec3((float)x, y, (float)z);
-	//		p1.y = perlin.noise((float)p1.x / 10.f, (float)p1.z / 10.f);
-
-	//		p2 = vec3((float)x + 1, y, (float)z);
-	//		p2.y = perlin.noise((float)p2.x / 10.f, (float)p2.z / 10.f);
-
-	//		p3 = vec3((float)x, y, (float)z + 1);
-	//		p3.y = perlin.noise((float)p3.x / 10.f, (float)p3.z / 10.f);
-
-	//		vertices.push_back(p1);
-	//		vertices.push_back(p2);
-	//		vertices.push_back(p3);
-	//		//printf("Tri1( %f %f ) ( %f %f ) ( %f %f ) ", p1.x, p1.z, p2.x, p2.z, p3.x, p3.z);
-
-	//		//создаем второй треугольник
-	//		p1 = vec3((float)x, y, (float)z + 1);
-	//		p1.y = perlin.noise((float)p1.x / 10.f, (float)p1.z / 10.f);
-
-	//		p2 = vec3((float)x + 1, y, (float)z + 1);
-	//		p2.y = perlin.noise((float)p2.x / 10.f, (float)p2.z / 10.f);
-
-	//		p3 = vec3((float)x + 1, y, (float)z);
-	//		p3.y = perlin.noise((float)p3.x / 10.f, (float)p3.z / 10.f);
-
-	//		vertices.push_back(p1);
-	//		vertices.push_back(p2);
-	//		vertices.push_back(p3);
-	//		//printf("Tri2( %f %f ) ( %f %f ) ( %f %f )\n", p1.x, p1.z, p2.x, p2.z, p3.x, p3.z);
-	//	}
-	//}
 }
 
 void fn_windowclose(HWND hWnd)
