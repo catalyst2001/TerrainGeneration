@@ -9,6 +9,7 @@
 #include "SimplexNoise.h"
 
 INT Width, Height;
+double last_time = 0.;
 
 std::vector<vec3> vertices;
 std::vector<unsigned int> indices;
@@ -21,8 +22,18 @@ CCamera camera(45.f, vec3(0.f, 10.f, 0.f));
 
 unsigned int vao, vbo, ebo;
 
+double TimeGetSeconds()
+{
+	LARGE_INTEGER frequency, time;
+	QueryPerformanceFrequency(&frequency);
+	QueryPerformanceCounter(&time);
+	return time.QuadPart / (double)frequency.QuadPart;
+}
+
+
 void fn_draw()
 {
+	double current_time = TimeGetSeconds();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 	camera.UpdateCameraState(GetStruct()->h_window);
@@ -49,6 +60,15 @@ void fn_draw()
 	//if (error != GL_NO_ERROR) {
 	//	printf("GL ERROR: %s\n", gluErrorString(error));
 	//}
+
+	int currfps = (int)1.f / (current_time - last_time);
+	static int minfps = 1000, maxfps = 1;
+	minfps = min(minfps, currfps);
+	maxfps = max(maxfps, currfps);
+	if (!(GetTickCount() % 10))
+		printf("curr FPS: %d  (min: %d | max: %d)      \r", currfps, minfps, maxfps);
+
+	last_time = current_time;
 }
 
 void fn_window_resize(HWND hWnd, int width, int height)
@@ -101,6 +121,7 @@ void fn_keydown(HWND hWnd, INT state, WPARAM wparam, LPARAM lparam)
 	}
 }
 
+#pragma region MYALG
 void generate_triangles_plane_no_eb(std::vector<vec3> &dest_verts, float xpos, float ypos, float zpos, float width_x, float width_y, float step)
 {
 	float half_width_x = width_x / 2.f;
@@ -255,6 +276,7 @@ void generate_triangles_plane_noise2(std::vector<vec3> &dest_verts, std::vector<
 		}
 	}
 }
+#pragma endregion
 
 SimplexNoise perlin;
 
@@ -273,7 +295,7 @@ void vertex_generation_filter(vec3 &vertex)
 	vertex.y /= (1.00f + 0.50f + 0.25f + 0.13f + 0.06f + 0.03f);
 	vertex.y = pow(vertex.y, 2.00f);
 	vertex.y *= 300;
-	vertex.y += 63;
+	//vertex.y += 63;
 }
 
 //Add this GL functions
@@ -296,11 +318,6 @@ void fn_windowcreate(HWND hWnd)
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	camera.SetActive(true);
-
-	//generate_triangles_plane_no_eb(vertices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f);
-	//generate_triangles_plane(vertices, indices, 0.f, 0.f, 0.f, 100.f, 100.f, 1.f);
-	generate_triangles_plane_noise(perlin, vertices, indices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.0f, vertex_generation_filter);
-	//generate_triangles_plane_noise2(vertices, indices, 0, 0, 0, 1000, 1000, 1, vertex_generation_filter);
 
 #pragma region OLDCODE
 	//float y = 0.f;
@@ -355,26 +372,34 @@ void fn_windowcreate(HWND hWnd)
 	glLightfv(GL_LIGHT0, GL_POSITION, position);
 	glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, direction);
 
+	//generate_triangles_plane_no_eb(vertices, 0.f, 0.f, 0.f, 1000.f, 1000.f, 1.f);
+	//generate_triangles_plane(vertices, indices, 0.f, 0.f, 0.f, 100.f, 100.f, 1.f);
+	generate_triangles_plane_noise(perlin, vertices, indices, 0.f, 0.f, 0.f, 3000.f, 3000.f, 1.0f, vertex_generation_filter);
+	//generate_triangles_plane_noise2(vertices, indices, 0, 0, 0, 1000, 1000, 1, vertex_generation_filter);
+
 	//create vertex buffer object
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	//create element buffer object
 	number_of_indices = indices.size();
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * number_of_indices, indices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * number_of_indices, indices.data(), GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	vertices.clear();
 	indices.clear();
+
+	last_time = TimeGetSeconds();
 }
 
 void fn_windowclose(HWND hWnd)
 {
 	glDeleteBuffers(1, &vbo);
+	glDeleteBuffers(1, &ebo);
 	glDisableClientState(GL_VERTEX_ARRAY);
 	exit(0);
 }
