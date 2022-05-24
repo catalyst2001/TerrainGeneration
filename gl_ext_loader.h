@@ -1,5 +1,5 @@
 /**
-* OpenGL Extensions Loader (GLL)
+* OpenGL Extensions Loader (GLEL)
 * This code copied from glad extensions loader
 */
 #pragma once
