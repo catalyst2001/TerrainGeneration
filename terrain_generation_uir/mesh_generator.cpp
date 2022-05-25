@@ -45,9 +45,11 @@ void generation_vertex_filter(vec3 &vertex, void *p_parameter)
 	SimplexNoise pnoise;
 	float x = p_genproperties->seed + vertex.x;
 	float z = p_genproperties->seed + vertex.z;
+
+	float ysmall_noise = pnoise.noise(x, z) * p_genproperties->small_noiseK;
+
 	float xpos = (x / p_genproperties->world_width) * p_genproperties->frequency;
 	float zpos = (z / p_genproperties->world_width) * p_genproperties->frequency;
-	float ysmall_noise = pnoise.noise(x, z) * p_genproperties->small_noiseK;
 	float ypos = (pnoise.noise(xpos, zpos) * p_genproperties->amplitude) + ysmall_noise;
 	vertex.y = ypos * p_genproperties->multiplier;
 }
